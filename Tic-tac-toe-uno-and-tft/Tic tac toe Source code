@@ -1,0 +1,369 @@
+// TicTacToe UNO + ST7735 TFT + Joystick
+// White background, black grid lines, Red X for AI, Green O for player
+// Joystick: A0 = X, A1 = Y, Button = D2
+// TFT pins: CS=10, RST=8, DC=9 (change if needed)
+
+
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7735.h>
+#include <SPI.h>
+
+
+// === TFT PINS (change if needed) ===
+#define TFT_CS   10
+#define TFT_RST  8
+#define TFT_DC   9
+
+
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+
+
+// === Joystick PINS ===
+#define JOY_X A0
+#define JOY_Y A1
+#define JOY_SW 2
+
+
+// Colors (16-bit)
+#define WHITE   0xFFFF
+#define BLACK   0x0000
+#define RED     0xF800
+#define GREEN   0x07E0
+#define BLUE    0x001F
+#define GREY    0xC618
+
+
+// Board state: 0 empty, 1 = player (O, green), 2 = AI (X, red)
+int board[3][3];
+
+
+// visual layout
+int scrW, scrH;
+int cellW, cellH;
+int offsetX=0, offsetY=0;
+
+
+// selection cursor pos (row, col)
+int selRow = 1, selCol = 1; // start center
+
+
+// joystick thresholds
+const int JOY_LOW = 300;
+const int JOY_HIGH = 700;
+unsigned long lastMoveTime = 0;
+const unsigned long moveDebounce = 150; // ms
+
+
+// forward declarations
+void drawGrid();
+void drawBoard();
+void drawX(int r, int c);
+void drawO(int r, int c);
+bool checkWin(int player);
+int minimax(int boardLocal[3][3], int depth, bool isMax);
+void aiMove();
+bool boardFull();
+void drawSelection();
+void resetBoard();
+
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(JOY_SW, INPUT_PULLUP);
+
+
+  tft.initR(INITR_BLACKTAB); // try INITR_144 or INITR_BLACKTAB depending on your module
+  tft.fillScreen(WHITE);
+
+
+  scrW = tft.width();
+  scrH = tft.height();
+  cellW = scrW / 3;
+  cellH = scrH / 3;
+  offsetX = 0;
+  offsetY = 0;
+
+
+  resetBoard();
+  drawGrid();
+  drawBoard();
+  drawSelection();
+  //tft.setRotation(2);
+}
+
+
+void loop() {
+  // Read joystick
+  int x = analogRead(JOY_X);
+  int y = analogRead(JOY_Y);
+  bool moved = false;
+  unsigned long now = millis();
+
+
+  if (now - lastMoveTime > moveDebounce) {
+    if (x < JOY_LOW) { // left
+      selCol = max(0, selCol - 1); moved = true; lastMoveTime = now;
+    } else if (x > JOY_HIGH) { // right
+      selCol = min(2, selCol + 1); moved = true; lastMoveTime = now;
+    } else if (y < JOY_LOW) { // up (note: joystick orientation may invert)
+      selRow = min(2, selRow + 1); moved = true; lastMoveTime = now;
+    } else if (y > JOY_HIGH) { // down
+      selRow = max(0, selRow - 1); moved = true; lastMoveTime = now;
+
+
+    }
+    if (moved) {
+      drawGrid();
+      drawBoard();
+      drawSelection();
+    }
+  }
+
+
+  // Button pressed (active LOW)
+  if (digitalRead(JOY_SW) == LOW) {
+    // simple debounce for button
+    delay(60);
+    if (digitalRead(JOY_SW) == LOW) {
+      // place player's O if empty
+      if (board[selRow][selCol] == 0) {
+        board[selRow][selCol] = 1;
+        drawGrid();
+        drawBoard();
+        // check player win
+        if (checkWin(1)) {
+          // player wins
+          tft.setCursor(2, scrH - 10);
+          tft.setTextSize(1);
+          tft.setTextColor(BLUE);
+          tft.print("You Win! Press button to play again.");
+          // wait for button press to reset
+          while (digitalRead(JOY_SW) == HIGH) delay(10);
+          while (digitalRead(JOY_SW) == LOW) delay(10); // release
+          resetBoard(); drawGrid(); drawBoard(); drawSelection();
+        }
+        if (!boardFull()) {
+          delay(200);
+          aiMove();
+          drawGrid();
+          drawBoard();
+          if (checkWin(2)) {
+            tft.setCursor(2, scrH - 10);
+            tft.setTextSize(1);
+            tft.setTextColor(RED);
+            tft.print("AI Wins! Press button to play again.  ");
+            while (digitalRead(JOY_SW) == HIGH) delay(10);
+            while (digitalRead(JOY_SW) == LOW) delay(10);
+            resetBoard(); drawGrid(); drawBoard(); drawSelection();
+          }
+        } else {
+          // tie
+          tft.setCursor(2, scrH - 10);
+          tft.setTextSize(1);
+          tft.setTextColor(BLUE);
+          tft.print("Tie! Press button to play again.   ");
+          while (digitalRead(JOY_SW) == HIGH) delay(10);
+          while (digitalRead(JOY_SW) == LOW) delay(10);
+          resetBoard(); drawGrid(); drawBoard(); drawSelection();
+        }
+      }
+      // wait for button release
+      while (digitalRead(JOY_SW) == LOW) delay(10);
+      drawGrid();
+      drawBoard();
+      drawSelection();
+    }
+  }
+
+
+  // small idle delay
+  delay(10);
+}
+
+
+void resetBoard() {
+  for (int r=0;r<3;r++) for (int c=0;c<3;c++) board[r][c] = 0;
+  selRow = 1; selCol = 1;
+  tft.fillScreen(WHITE);
+}
+
+
+void drawGrid() {
+  tft.fillScreen(WHITE);
+  // vertical lines
+  for (int i=1;i<=2;i++) {
+    int x = offsetX + i * cellW;
+    tft.drawFastVLine(x, offsetY, scrH, BLACK);
+    // draw slightly thicker line by drawing adjacent pixel (makes bold lines)
+    tft.drawFastVLine(x+1, offsetY, scrH, BLACK);
+  }
+  // horizontal lines
+  for (int i=1;i<=2;i++) {
+    int y = offsetY + i * cellH;
+    tft.drawFastHLine(offsetX, y, scrW, BLACK);
+    tft.drawFastHLine(offsetX, y+1, scrW, BLACK);
+  }
+}
+
+
+void drawBoard() {
+  // draw Xs and Os
+  for (int r=0;r<3;r++) {
+    for (int c=0;c<3;c++) {
+      if (board[r][c] == 1) drawO(r,c);
+      else if (board[r][c] == 2) drawX(r,c);
+    }
+  }
+}
+
+
+void drawSelection() {
+  // draw a rectangle around selected cell
+  int x = offsetX + selCol * cellW;
+  int y = offsetY + selRow * cellH;
+  // draw semi-transparent-like selection by drawing a thin rectangle (no alpha on TFT)
+  // erase previous selection by redrawing grid/board before calling this
+  tft.drawRect(x+2, y+2, cellW-4, cellH-4, BLUE);
+  tft.drawRect(x+3, y+3, cellW-6, cellH-6, BLUE);
+}
+
+
+void drawX(int r, int c) {
+  int x = offsetX + c*cellW;
+  int y = offsetY + r*cellH;
+  int pad = min(cellW,cellH) / 6; // padding inside cell
+  int x0 = x + pad;
+  int y0 = y + pad;
+  int x1 = x + cellW - pad;
+  int y1 = y + cellH - pad;
+  // draw main diagonal
+  for (int i=-1;i<=1;i++) { // make lines thicker
+    tft.drawLine(x0, y0+i, x1, y1+i, RED);
+    tft.drawLine(x0+i, y0, x1+i, y1, RED);
+    tft.drawLine(x0, y1+i, x1, y0+i, RED);
+    tft.drawLine(x0+i, y1, x1+i, y0, RED);
+  }
+}
+
+
+void drawO(int r, int c) {
+  int x = offsetX + c*cellW + cellW/2;
+  int y = offsetY + r*cellH + cellH/2;
+  int radius = min(cellW, cellH)/2 - min(cellW,cellH)/6;
+  // draw thicker circle by drawing concentric circles
+  for (int rr = radius-1; rr <= radius+1; rr++) {
+    tft.drawCircle(x, y, rr, GREEN);
+  }
+}
+
+
+// Returns true if given player (1 or 2) has won
+bool checkWin(int p) {
+  // rows
+  for (int r=0;r<3;r++) {
+    if (board[r][0]==p && board[r][1]==p && board[r][2]==p) return true;
+  }
+  // cols
+  for (int c=0;c<3;c++) {
+    if (board[0][c]==p && board[1][c]==p && board[2][c]==p) return true;
+  }
+  // diagonals
+  if (board[0][0]==p && board[1][1]==p && board[2][2]==p) return true;
+  if (board[0][2]==p && board[1][1]==p && board[2][0]==p) return true;
+  return false;
+}
+
+
+bool boardFull() {
+  for (int r=0;r<3;r++) for (int c=0;c<3;c++) if (board[r][c]==0) return false;
+  return true;
+}
+
+
+// AI: makes the best move for player 2 (AI)
+void aiMove() {
+  int bestScore = -10000;
+  int br=-1, bc=-1;
+  int local[3][3];
+  for (int r=0;r<3;r++) for (int c=0;c<3;c++) local[r][c]=board[r][c];
+
+
+  for (int r=0;r<3;r++) {
+    for (int c=0;c<3;c++) {
+      if (local[r][c]==0) {
+        local[r][c] = 2;
+        int score = minimax(local, 0, false);
+        local[r][c] = 0;
+        if (score > bestScore) {
+          bestScore = score;
+          br = r; bc = c;
+        }
+      }
+    }
+  }
+  if (br!=-1) {
+    board[br][bc] = 2;
+  }
+}
+
+
+// minimax: returns score for current board: +10 for AI win, -10 for player win, 0 tie
+int minimax(int boardLocal[3][3], int depth, bool isMax) {
+  // check terminal states
+  // AI win?
+  bool aiWins = false;
+  bool playerWins = false;
+  // check rows
+  for (int r=0;r<3;r++) {
+    if (boardLocal[r][0]==2 && boardLocal[r][1]==2 && boardLocal[r][2]==2) aiWins = true;
+    if (boardLocal[r][0]==1 && boardLocal[r][1]==1 && boardLocal[r][2]==1) playerWins = true;
+  }
+  for (int c=0;c<3;c++) {
+    if (boardLocal[0][c]==2 && boardLocal[1][c]==2 && boardLocal[2][c]==2) aiWins = true;
+    if (boardLocal[0][c]==1 && boardLocal[1][c]==1 && boardLocal[2][c]==1) playerWins = true;
+  }
+  if (boardLocal[0][0]==2 && boardLocal[1][1]==2 && boardLocal[2][2]==2) aiWins = true;
+  if (boardLocal[0][2]==2 && boardLocal[1][1]==2 && boardLocal[2][0]==2) aiWins = true;
+  if (boardLocal[0][0]==1 && boardLocal[1][1]==1 && boardLocal[2][2]==1) playerWins = true;
+  if (boardLocal[0][2]==1 && boardLocal[1][1]==1 && boardLocal[2][0]==1) playerWins = true;
+
+
+  if (aiWins) return 10 - depth;    // prefer fast wins
+  if (playerWins) return -10 + depth; // prefer slow losses
+
+
+  // check for tie
+  bool emptyFound = false;
+  for (int r=0;r<3;r++) for (int c=0;c<3;c++) if (boardLocal[r][c]==0) emptyFound = true;
+  if (!emptyFound) return 0;
+
+
+  if (isMax) {
+    int best = -10000;
+    for (int r=0;r<3;r++) {
+      for (int c=0;c<3;c++) {
+        if (boardLocal[r][c]==0) {
+          boardLocal[r][c]=2;
+          int val = minimax(boardLocal, depth+1, false);
+          boardLocal[r][c]=0;
+          best = max(best, val);
+        }
+      }
+    }
+    return best;
+  } else {
+    int best = 10000;
+    for (int r=0;r<3;r++) {
+      for (int c=0;c<3;c++) {
+        if (boardLocal[r][c]==0) {
+          boardLocal[r][c]=1;
+          int val = minimax(boardLocal, depth+1, true);
+          boardLocal[r][c]=0;
+          best = min(best, val);
+        }
+      }
+    }
+    return best;
+  }
+}
+
