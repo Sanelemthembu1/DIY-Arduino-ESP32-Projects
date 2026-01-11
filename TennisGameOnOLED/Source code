@@ -1,0 +1,294 @@
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+#define BUZZER_PIN 9
+#define JOYSTICK_X A0
+#define POWER_BUTTON 2  // Power shot button
+
+
+int ballSpeedX = 3;
+int ballSpeedY = 3;
+int ballRadius = 4;
+
+
+bool ballOut = false;
+bool concededByPlayer = false;
+bool isPowerShot = false;
+
+
+unsigned long gameStartTime;
+unsigned long gameTimeLimit = 20000;
+bool timerRunning = true;
+
+
+int playerScoreIndex = 0;
+int aiScoreIndex = 0;
+bool playerAdvantage = false;
+bool aiAdvantage = false;
+
+
+const char* scoreStrings[] = {"0", "15", "30","45","WIN"};
+
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+
+int xOffset = 8;
+int paddleWidth = 18;
+int paddleHeight = 3;
+
+
+int playerX = 35 + xOffset;
+int playerY = SCREEN_HEIGHT - 4;
+
+
+int aiX = 35 + xOffset;
+int aiY = 2;
+
+
+int ballX = 64;
+int ballY = 32;
+
+
+int leftLimit = 15 + xOffset;
+int rightLimit = SCREEN_WIDTH - 60 + xOffset;
+
+
+int leftEdge = 0 + xOffset;
+int rightEdge = SCREEN_WIDTH - 60 + xOffset;
+
+
+void setup() {
+  pinMode(JOYSTICK_X, INPUT);
+  pinMode(POWER_BUTTON, INPUT_PULLUP);
+  pinMode(BUZZER_PIN, OUTPUT);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  gameStartTime = millis();
+  resetBall(false);
+}
+
+
+void loop() {
+  if (timerRunning && millis() - gameStartTime >= gameTimeLimit) {
+    timerRunning = false;
+  }
+
+
+  int joyX = analogRead(JOYSTICK_X);
+  int mappedX = map(joyX, 0, 1023, leftEdge, rightEdge - paddleWidth);
+  playerX = constrain(mappedX, leftEdge, rightEdge - paddleWidth);
+
+
+  if (random(0, 100) > 20) {
+    if (ballX < aiX + paddleWidth / 2) {
+      aiX -= 2;
+    } else if (ballX > aiX + paddleWidth / 2) {
+      aiX += 2;
+    }
+  }
+  aiX = constrain(aiX, leftEdge, rightEdge - paddleWidth);
+
+
+  bool aiPowerShot = false;
+  if (!ballOut && ballY <= aiY + paddleHeight + ballRadius + 1 && random(0, 100) < 10) {
+    aiPowerShot = true;
+    isPowerShot = true;
+    ballSpeedY = 9;
+    ballSpeedX = 1;
+    tone(BUZZER_PIN, 2200, 100);
+    display.invertDisplay(true); delay(100); display.invertDisplay(false); // ⚡ FLASH
+  }
+
+
+  if (!ballOut && digitalRead(POWER_BUTTON) == LOW) {
+    isPowerShot = true;
+    ballSpeedY = -9;
+    ballSpeedX = -1;
+    tone(BUZZER_PIN, 2000, 100);
+    display.invertDisplay(true); delay(100); display.invertDisplay(false); // ⚡ FLASH
+  }
+
+
+  ballX += ballSpeedX;
+  ballY += ballSpeedY;
+
+
+  if (!ballOut &&
+      (ballX - ballRadius <= leftEdge || ballX + ballRadius >= rightEdge)) {
+    if (random(0, 100) < 40) {
+      ballOut = true;
+      concededByPlayer = (ballY > SCREEN_HEIGHT / 2);
+      updateScore(concededByPlayer);
+    } else {
+      ballSpeedX *= -1;
+    }
+  }
+
+
+  if (!isPowerShot &&
+      ballY - ballRadius <= aiY + paddleHeight &&
+      ballX + ballRadius >= aiX &&
+      ballX - ballRadius <= aiX + paddleWidth) {
+    ballSpeedY *= -1;
+    ballY = aiY + paddleHeight + ballRadius + 1;
+    tone(BUZZER_PIN, 1000, 100);
+  }
+
+
+  if (ballY + ballRadius >= playerY &&
+      ballX + ballRadius >= playerX &&
+      ballX - ballRadius <= playerX + paddleWidth) {
+    ballSpeedY *= -1;
+    ballY = playerY - ballRadius - 1;
+    tone(BUZZER_PIN, 1500, 100);
+  }
+
+
+  if (!ballOut && (ballY < -ballRadius || ballY > SCREEN_HEIGHT + ballRadius)) {
+    ballOut = true;
+    concededByPlayer = !isPowerShot ? (ballY > SCREEN_HEIGHT / 2) : false;
+    updateScore(concededByPlayer);
+  }
+
+
+  display.clearDisplay();
+  drawTennisField();
+  drawPaddles();
+  drawBall();
+  drawScoresAndTimer();
+  display.display();
+
+
+  if (ballOut &&
+      (ballX < -ballRadius || ballX > SCREEN_WIDTH + ballRadius ||
+       ballY < -ballRadius || ballY > SCREEN_HEIGHT + ballRadius)) {
+    resetBall(concededByPlayer);
+    ballOut = false;
+    isPowerShot = false;
+  }
+
+
+  delay(25);
+}
+
+
+void resetBall(bool concededByPlayer) {
+  if (concededByPlayer) {
+    ballX = aiX + paddleWidth / 2;
+    ballY = aiY + paddleHeight + ballRadius + 1;
+    ballSpeedY = 3;
+  } else {
+    ballX = playerX + paddleWidth / 2;
+    ballY = playerY - ballRadius - 1;
+    ballSpeedY = -3;
+  }
+  ballSpeedX = (random(0, 2) == 0) ? 2 : -2;
+  tone(BUZZER_PIN, 500, 200);
+}
+
+
+void updateScore(bool playerConceded) {
+  if (playerConceded) {
+    if (playerScoreIndex >= 3 && aiScoreIndex >= 3) {
+      if (aiAdvantage) {
+        aiScoreIndex = 5;
+      } else if (playerAdvantage) {
+        playerAdvantage = false;
+      } else {
+        aiAdvantage = true;
+      }
+    } else {
+      aiScoreIndex++;
+    }
+  } else {
+    if (playerScoreIndex >= 3 && aiScoreIndex >= 3) {
+      if (playerAdvantage) {
+        playerScoreIndex = 5;
+      } else if (aiAdvantage) {
+        aiAdvantage = false;
+      } else {
+        playerAdvantage = true;
+      }
+    } else {
+      playerScoreIndex++;
+    }
+  }
+
+
+  if (playerScoreIndex == 5 || aiScoreIndex == 5) {
+    playerScoreIndex = 0;
+    aiScoreIndex = 0;
+    playerAdvantage = false;
+    aiAdvantage = false;
+    gameStartTime = millis();
+    timerRunning = true;
+  }
+}
+
+
+void drawScoresAndTimer() {
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(90, 20);
+  display.print("P:");
+  display.print(scoreStrings[aiAdvantage ? 4 : aiScoreIndex]);
+  display.setCursor(90, 30);
+  display.print("AI:");
+  display.print(scoreStrings[playerAdvantage ? 4 : playerScoreIndex]);
+
+
+  display.setCursor(SCREEN_WIDTH - 40, 0);
+  if (timerRunning) {
+    int timeLeft = (gameTimeLimit - (millis() - gameStartTime)) / 1000;
+    display.print("T:");
+    display.print(timeLeft);
+    display.print("s");
+  } else {
+    display.print("T:0s");
+  }
+}
+
+
+void drawTennisField() {
+  display.fillRect(0, 30, SCREEN_WIDTH - 60 + xOffset + 6, 3, SSD1306_WHITE);
+  display.drawRect(0 + xOffset, 0, SCREEN_WIDTH - 60, 1, SSD1306_WHITE);
+  display.drawRect(SCREEN_WIDTH - 60 + xOffset, 0, 1, SCREEN_HEIGHT, SSD1306_WHITE);
+  display.drawRect(0 + xOffset, 0, 1, SCREEN_HEIGHT, SSD1306_WHITE);
+  display.drawRect(0 + xOffset, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 60, 1, SSD1306_WHITE);
+
+
+  display.drawRect(10 + xOffset, 0, SCREEN_WIDTH - 75, 1, SSD1306_WHITE);
+  display.drawRect(SCREEN_WIDTH - 75 + xOffset, 0, 1, SCREEN_HEIGHT, SSD1306_WHITE);
+  display.drawRect(15 + xOffset, 0, 1, SCREEN_HEIGHT, SSD1306_WHITE);
+  display.drawRect(0 + xOffset, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 75, 1, SSD1306_WHITE);
+
+
+  display.drawRect(15 + xOffset, 15, SCREEN_WIDTH - 90, 1, SSD1306_WHITE);
+  display.drawRect(15 + xOffset, 0, 1, SCREEN_HEIGHT, SSD1306_WHITE);
+  display.drawRect(15 + xOffset, SCREEN_HEIGHT - 15, SCREEN_WIDTH - 90, 1, SSD1306_WHITE);
+
+
+  display.drawRect(35 + xOffset, 15, 1, SCREEN_HEIGHT - 30, SSD1306_WHITE);
+}
+
+
+void drawPaddles() {
+  display.fillRect(playerX, playerY, paddleWidth, paddleHeight, SSD1306_WHITE);
+  display.fillRect(aiX, aiY, paddleWidth, paddleHeight, SSD1306_WHITE);
+}
+
+
+void drawBall() {
+  if (isPowerShot)
+    display.drawCircle(ballX, ballY, 4, SSD1306_WHITE);  // 🔄 Unfilled during power shot
+  else
+    display.fillCircle(ballX, ballY, 4, SSD1306_WHITE);  // Filled otherwise
+}
+
+
+
