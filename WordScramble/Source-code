@@ -1,0 +1,300 @@
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <Wire.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+#define JOY_X A0
+#define JOY_Y A1
+#define JOY_BTN 2
+#define HINT_BTN 3
+#define SELECT_BTN 4
+#define GREEN_LED 9
+#define RED_LED 10
+#define BUZZER 8
+
+int level = 1, score = 0, lives = 3, wordLength = 2;
+unsigned long startTime;
+unsigned long timeLimit = 15000;
+bool inputComplete = false, gameOver = false;
+int inputIndex = 0;
+
+char userInput[10], target[10];
+char letterGrid[2][3];
+bool usedGrid[2][3];
+int cursorX = 0, cursorY = 0;
+bool animateSlot[10] = {false};
+
+const char* words2[] = {"GO", "UP", "TO", "ME", "IT"};
+const char* words3[] = {"CAT", "MAN", "SUN", "BOX", "FUN"};
+const char* words4[] = {"CODE", "LAMP", "FIRE", "GAME", "FROG"};
+const char* words5[] = {"PLANT", "TRAIN", "SPACE", "ROBOT", "TABLE"};
+
+void flashGreen() {
+  digitalWrite(GREEN_LED, HIGH);
+  tone(BUZZER, 1000, 100);
+  delay(150);
+  digitalWrite(GREEN_LED, LOW);
+}
+
+void flashRed() {
+  digitalWrite(RED_LED, HIGH);
+  tone(BUZZER, 200, 200);
+  delay(200);
+  digitalWrite(RED_LED, LOW);
+}
+
+void toggleSound() {
+  tone(BUZZER, 700, 50);
+}
+
+void shuffleWord(const char* word, char* output) {
+  strcpy(output, word);
+  int len = strlen(output);
+  for (int i = 0; i < len; i++) {
+    int j = random(len);
+    char t = output[i];
+    output[i] = output[j];
+    output[j] = t;
+  }
+}
+
+void resetGame() {
+  level = 1;
+  score = 0;
+  lives = 3;
+  timeLimit = 15000;
+  gameOver = false;
+  setWord();
+}
+
+void setWord() {
+  switch (level) {
+    case 1: wordLength = 2; strcpy(target, words2[random(5)]); break;
+    case 2: wordLength = 3; strcpy(target, words3[random(5)]); break;
+    case 3: wordLength = 4; strcpy(target, words4[random(5)]); break;
+    default: wordLength = 5; strcpy(target, words5[random(5)]); break;
+  }
+
+  for (int i = 0; target[i]; i++) target[i] = toupper(target[i]);
+  memset(userInput, 0, sizeof(userInput));
+  memset(usedGrid, 0, sizeof(usedGrid));
+  memset(animateSlot, 0, sizeof(animateSlot));
+  inputIndex = 0;
+  inputComplete = false;
+
+  char shuffled[10];
+  shuffleWord(target, shuffled);
+
+  char tempLetters[6];
+  for (int i = 0; i < wordLength; i++) tempLetters[i] = toupper(shuffled[i]);
+  for (int i = wordLength; i < 6; i++) tempLetters[i] = 'A' + random(26);
+
+  for (int i = 0; i < 6; i++) {
+    int j = random(6);
+    char t = tempLetters[i];
+    tempLetters[i] = tempLetters[j];
+    tempLetters[j] = t;
+  }
+
+  int idx = 0;
+  for (int y = 0; y < 2; y++) {
+    for (int x = 0; x < 3; x++) {
+      letterGrid[y][x] = tempLetters[idx++];
+    }
+  }
+
+  startTime = millis();
+}
+
+void drawBoldChar(int x, int y, char c) {
+  display.setCursor(x, y);
+  display.write(c);
+  display.setCursor(x + 1, y);
+  display.write(c);
+}
+
+void drawGrid() {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  display.setCursor(0, 0);
+  display.print("L:"); display.print(level);
+  display.setCursor(35, 0);
+  display.print("S:"); display.print(score);
+  display.setCursor(70, 0);
+  display.print("V:"); display.print(lives);
+  int remaining = (timeLimit - (millis() - startTime)) / 1000;
+  display.setCursor(100, 0);
+  display.print("T:"); display.print(max(0, remaining));
+
+  // Draw input slots with optional animation
+  int slotSize = 14;
+  int slotSpacing = 4;
+  int slotStartX = (SCREEN_WIDTH - (wordLength * (slotSize + slotSpacing))) / 2;
+  int slotY = 12;
+
+  for (int i = 0; i < wordLength; i++) {
+    int x = slotStartX + i * (slotSize + slotSpacing);
+    int animOffset = animateSlot[i] ? 2 : 0;
+    display.drawRect(x - animOffset, slotY - animOffset, slotSize + animOffset * 2, slotSize + animOffset * 2, SSD1306_WHITE);
+
+    if (i < inputIndex) {
+      drawBoldChar(x + 3, slotY + 3, userInput[i]);
+    }
+  }
+
+  // Draw centered bottom grid (updated)
+  int boxSize = 18;
+  int totalGridWidth = 3 * boxSize;
+  int totalGridHeight = 2 * boxSize;
+  int gridStartX = (SCREEN_WIDTH - totalGridWidth) / 2;
+  int gridStartY = SCREEN_HEIGHT - totalGridHeight - 3;
+
+  for (int y = 0; y < 2; y++) {
+    for (int x = 0; x < 3; x++) {
+      int px = gridStartX + x * boxSize;
+      int py = gridStartY + y * boxSize;
+
+      if (usedGrid[y][x]) {
+        display.fillRect(px, py, boxSize, boxSize, SSD1306_WHITE);
+        display.setTextColor(SSD1306_BLACK);
+      } else {
+        display.setTextColor(SSD1306_WHITE);
+        display.drawRect(px, py, boxSize, boxSize, SSD1306_WHITE);
+      }
+
+      drawBoldChar(px + 5, py + 4, letterGrid[y][x]);
+
+      if (cursorX == x && cursorY == y) {
+        for (int i = 0; i < 2; i++) {
+          display.drawRect(px - 1 - i, py - 1 - i, boxSize + 2 + (i * 2), boxSize + 2 + (i * 2), SSD1306_WHITE);
+        }
+      }
+    }
+  }
+
+  int barWidth = map((long)(timeLimit - (millis() - startTime)), 0, timeLimit, 0, SCREEN_WIDTH);
+  display.drawRect(0, 63, SCREEN_WIDTH, 1, SSD1306_WHITE);
+  display.fillRect(0, 63, barWidth, 1, SSD1306_WHITE);
+
+  display.display();
+}
+
+bool longPress(int pin, int duration) {
+  if (digitalRead(pin) == HIGH) return false;
+  unsigned long start = millis();
+  while (digitalRead(pin) == LOW) {
+    if (millis() - start >= duration) return true;
+  }
+  return false;
+}
+
+void showMessage(const char* msg) {
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setCursor(15, 25);
+  display.print(msg);
+  display.display();
+  delay(1200);
+}
+
+void setup() {
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  pinMode(JOY_BTN, INPUT_PULLUP);
+  pinMode(HINT_BTN, INPUT_PULLUP);
+  pinMode(SELECT_BTN, INPUT_PULLUP);
+  pinMode(GREEN_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+  randomSeed(analogRead(0));
+  setWord();
+}
+
+void loop() {
+  if (gameOver) return;
+  drawGrid();
+
+  if (millis() - startTime > timeLimit && !inputComplete) {
+    flashRed(); lives--;
+    if (lives == 0) {
+      showMessage("YOU LOSE");
+      gameOver = true;
+      return;
+    }
+    delay(500); setWord(); return;
+  }
+
+  int xVal = analogRead(JOY_X), yVal = analogRead(JOY_Y);
+  if (xVal < 400) { cursorX = max(0, cursorX - 1); delay(200); }
+  else if (xVal > 600) { cursorX = min(2, cursorX + 1); delay(200); }
+  if (yVal > 600) { cursorY = max(0, cursorY - 1); delay(200); }
+  else if (yVal < 400) { cursorY = min(1, cursorY + 1); delay(200); }
+
+  if (longPress(SELECT_BTN, 1500)) {
+    showMessage("Restarting");
+    resetGame();
+    return;
+  }
+
+  if (digitalRead(HINT_BTN) == LOW && !inputComplete) {
+    delay(200);
+    showMessage("Restarting");
+    resetGame();
+    return;
+  }
+
+  static bool joyPrev = false;
+  bool joyNow = digitalRead(JOY_BTN) == LOW;
+  if (joyNow && !joyPrev && inputIndex < wordLength) {
+    toggleSound();
+    char selected = letterGrid[cursorY][cursorX];
+    if (usedGrid[cursorY][cursorX]) {
+      for (int i = 0; i < inputIndex; i++) {
+        if (userInput[i] == selected) {
+          for (int j = i; j < inputIndex - 1; j++) userInput[j] = userInput[j + 1];
+          userInput[--inputIndex] = '\0'; usedGrid[cursorY][cursorX] = false;
+          animateSlot[i] = false;
+          break;
+        }
+      }
+    } else {
+      userInput[inputIndex] = selected;
+      usedGrid[cursorY][cursorX] = true;
+      animateSlot[inputIndex] = true;
+      inputIndex++;
+    }
+    delay(200);
+  }
+  joyPrev = joyNow;
+
+  if (!inputComplete && inputIndex == wordLength) {
+    inputComplete = true;
+    userInput[wordLength] = '\0';
+    if (strcmp(userInput, target) == 0) {
+      flashGreen();
+      showMessage("Correct!");
+      score += 5;
+      timeLimit += 5000;
+      level++;
+      if (level > 5) {
+        showMessage("YOU WIN!");
+        gameOver = true;
+        return;
+      }
+    } else {
+      flashRed(); lives--;
+      if (lives == 0) {
+        showMessage("YOU LOSE");
+        gameOver = true;
+        return;
+      }
+    }
+    delay(500); setWord();
+  }
+
+  for (int i = 0; i < wordLength; i++) animateSlot[i] = false;
+}
