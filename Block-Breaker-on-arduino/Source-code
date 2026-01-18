@@ -1,0 +1,148 @@
+#include <Adafruit_GFX.h> #include <Adafruit_SSD1306.h>
+#define SCREEN_WIDTH 128 #define SCREEN_HEIGHT 64 #define OLED_RESET -1 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+// -------- PINS -------#define JOY_X A0 #define JOY_SW 2 #define BUZZER 9
+// -------- PADDLE -------int paddleX = 48; const int paddleY = 56; const int paddleW = 32; const int paddleH = 4;
+// -------- BALL -------int ballX = 64; int ballY = 40; int ballDX = 1; int ballDY = -1; const int ballR = 2;
+// -------- BULLETS (DOUBLE SHOT) -------bool bulletLActive = false; bool bulletRActive = false; int bulletLX, bulletLY; int bulletRX, bulletRY; const int bulletSpeed = 3; bool lastButtonState = HIGH;
+// -------- BLOCKS -------#define ROWS 3 #define COLS 8 bool blocks[ROWS][COLS]; const int blockW = SCREEN_WIDTH / COLS; const int blockH = 6; const int blockTopOffset = 10;
+bool gameOver = false; bool winGame = false;// -------- SOUND --------
+void blockSound() { tone(BUZZER, 1200, 40); }
+void paddleSound() { tone(BUZZER, 800, 30); }
+void shootSound() { tone(BUZZER, 1500, 50); }
+void gameOverSound() { tone(BUZZER, 300, 400); }
+void winSound() {
+tone(BUZZER, 1000, 120);
+delay(140);
+tone(BUZZER, 1500, 150);
+}
+void setup() {
+display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+display.clearDisplay();
+pinMode(BUZZER, OUTPUT);
+pinMode(JOY_SW, INPUT_PULLUP);
+for (int r = 0; r < ROWS; r++)
+for (int c = 0; c < COLS; c++)
+blocks[r][c] = true;
+}
+void loop() {
+if (gameOver) {
+gameOverSound();
+showEndScreen("GAME OVER");
+while (1);
+}
+if (winGame) {
+winSound();
+showEndScreen("YOU WIN!");
+while (1);
+}
+readJoystick();
+handleShooting();
+moveBall();
+moveBullets();
+checkCollisions();
+drawGame();delay(15);
+}
+// ---------- INPUT ----------
+void readJoystick() {
+int xVal = analogRead(JOY_X);
+paddleX = map(xVal, 0, 1023, 1, SCREEN_WIDTH - paddleW - 1);
+}
+// ---------- DOUBLE SHOOT ----------
+void handleShooting() {
+bool buttonState = digitalRead(JOY_SW);
+if (lastButtonState == HIGH && buttonState == LOW &&
+!bulletLActive && !bulletRActive) {
+bulletLActive = true;
+bulletRActive = true;
+bulletLX = paddleX + 6;
+bulletRX = paddleX + paddleW - 6;
+bulletLY = bulletRY = paddleY - 2;
+shootSound();
+}
+lastButtonState = buttonState;
+}
+// ---------- MOVEMENT ----------
+void moveBall() {
+ballX += ballDX;
+ballY += ballDY;
+if (ballX <= 1 || ballX >= SCREEN_WIDTH - 2) ballDX *= -1;
+if (ballY <= 9) ballDY *= -1;
+if (ballY >= SCREEN_HEIGHT) gameOver = true;
+}
+void moveBullets() {
+if (bulletLActive) {
+bulletLY -= bulletSpeed;
+if (bulletLY < 8) bulletLActive = false;
+}if (bulletRActive) {
+bulletRY -= bulletSpeed;
+if (bulletRY < 8) bulletRActive = false;
+}
+}
+// ---------- COLLISIONS ----------
+void checkCollisions() {
+// Paddle
+if (ballY >= paddleY - 2 &&
+ballX >= paddleX &&
+ballX <= paddleX + paddleW) {
+ballDY *= -1;
+paddleSound();
+}
+int remaining = 0;
+for (int r = 0; r < ROWS; r++) {
+for (int c = 0; c < COLS; c++) {
+if (!blocks[r][c]) continue;
+remaining++;
+int bx = c * blockW;
+int by = blockTopOffset + r * blockH;
+// Ball hit
+if (ballX >= bx && ballX <= bx + blockW &&
+ballY >= by && ballY <= by + blockH) {
+blocks[r][c] = false;
+ballDY *= -1;
+blockSound();
+}
+// Left bullet hit
+if (bulletLActive &&
+bulletLX >= bx && bulletLX <= bx + blockW &&
+bulletLY >= by && bulletLY <= by + blockH) {
+blocks[r][c] = false;
+bulletLActive = false;
+blockSound();
+}// Right bullet hit
+if (bulletRActive &&
+bulletRX >= bx && bulletRX <= bx + blockW &&
+bulletRY >= by && bulletRY <= by + blockH) {
+blocks[r][c] = false;
+bulletRActive = false;
+blockSound();
+}
+}
+}
+if (remaining == 0) winGame = true;
+}
+// ---------- DRAW ----------
+void drawGame() {
+display.clearDisplay();
+// Borders
+display.drawRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
+display.drawLine(0, 8, SCREEN_WIDTH, 8, SSD1306_WHITE);
+// Paddle
+display.fillRect(paddleX, paddleY, paddleW, paddleH, SSD1306_WHITE);
+// Ball
+display.fillCircle(ballX, ballY, ballR, SSD1306_WHITE);
+// Bullets
+if (bulletLActive)
+display.drawFastVLine(bulletLX, bulletLY, 4, SSD1306_WHITE);
+if (bulletRActive)
+display.drawFastVLine(bulletRX, bulletRY, 4, SSD1306_WHITE);
+// Blocks
+for (int r = 0; r < ROWS; r++)
+for (int c = 0; c < COLS; c++)
+if (blocks[r][c])
+display.fillRect(
+c * blockW + 1,
+blockTopOffset + r * blockH + 1,
+blockW - 2,
+blockH - 2,
+SSD1306_WHITE); display.display(); }
+// ---------- END ---------void showEndScreen(const char* text) { display.clearDisplay(); display.setTextSize(1); display.setTextColor(SSD1306_WHITE); display.setCursor(30, 30); display.print(text); display.display();
