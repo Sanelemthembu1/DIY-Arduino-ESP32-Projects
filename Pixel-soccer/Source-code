@@ -1,0 +1,184 @@
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <Wire.h>
+
+// ================= OLED =================
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// ================= PINS =================
+#define JOY_X A0
+#define JOY_Y A1
+#define JOY_BTN 2
+#define BUZZER 6
+
+// ================= GAME OBJECTS =================
+int playerX = 12;
+int playerY = 32;
+
+int aiX = 113;
+int aiY = 32;
+
+int ballX = 64;
+int ballY = 32;
+int ballVX = 1;
+int ballVY = 1;
+
+int playerScore = 0;
+int aiScore = 0;
+
+// ================= TIMER =================
+unsigned long matchStart;
+const int MATCH_TIME = 15000;
+
+// ================= FIELD =================
+#define FIELD_TOP 10
+#define FIELD_BOTTOM 63
+
+// ================= SETUP =================
+void setup() {
+  pinMode(JOY_BTN, INPUT_PULLUP);
+  pinMode(BUZZER, OUTPUT);
+
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+
+  randomSeed(analogRead(0));
+  matchStart = millis();
+}
+
+// ================= MAIN LOOP =================
+void loop() {
+  if (millis() - matchStart >= MATCH_TIME) {
+    showGameOver();
+    return;
+  }
+
+  readJoystick();
+  moveAI();
+  moveBall();
+  checkCollisions();
+  drawGame();
+}
+
+// ================= INPUT =================
+void readJoystick() {
+  int x = analogRead(JOY_X);
+  int y = analogRead(JOY_Y);
+
+  if (x < 400 && playerX > 5) playerX--;
+  if (x > 600 && playerX < 60) playerX++;
+  if (y < 400 && playerY > FIELD_TOP + 1) playerY--;
+  if (y > 600 && playerY < FIELD_BOTTOM - 3) playerY++;
+}
+
+// ================= AI =================
+void moveAI() {
+  if (ballY > aiY && aiY < FIELD_BOTTOM - 3) aiY++;
+  if (ballY < aiY && aiY > FIELD_TOP + 1) aiY--;
+}
+
+// ================= BALL =================
+void moveBall() {
+  ballX += ballVX;
+  ballY += ballVY;
+
+  if (ballY <= FIELD_TOP + 1 || ballY >= FIELD_BOTTOM - 1)
+    ballVY *= -1;
+}
+
+// ================= COLLISION =================
+void checkCollisions() {
+  if (abs(ballX - playerX) < 4 && abs(ballY - playerY) < 4) {
+    ballVX = 1;
+    tone(BUZZER, 1200, 40);
+  }
+
+  if (abs(ballX - aiX) < 4 && abs(ballY - aiY) < 4) {
+    ballVX = -1;
+    tone(BUZZER, 900, 40);
+  }
+
+  // Left goal
+  if (ballX <= 3 && ballY > 24 && ballY < 40) {
+    aiScore++;
+    resetBall(-1);
+  }
+
+  // Right goal
+  if (ballX >= 124 && ballY > 24 && ballY < 40) {
+    playerScore++;
+    resetBall(1);
+  }
+}
+
+// ================= RESET =================
+void resetBall(int dir) {
+  tone(BUZZER, 1500, 200);
+  delay(250);
+
+  ballX = 64;
+  ballY = random(20, 44);
+  ballVX = dir;
+  ballVY = random(-1, 2);
+}
+
+// ================= DRAW FIELD =================
+void drawField() {
+  // Outer field
+  display.drawRect(0, FIELD_TOP, 128, 54, SSD1306_WHITE);
+
+  // Center line |
+  display.drawLine(64, FIELD_TOP, 64, FIELD_BOTTOM, SSD1306_WHITE);
+
+  // Center circle ( )
+  display.drawCircle(64, 36, 8, SSD1306_WHITE);
+  display.fillCircle(64, 36, 1, SSD1306_WHITE);
+
+  // Left goal box [
+  display.drawRect(0, 22, 10, 28, SSD1306_WHITE);
+
+  // Right goal box ]
+  display.drawRect(118, 22, 10, 28, SSD1306_WHITE);
+}
+
+// ================= DRAW =================
+void drawGame() {
+  display.clearDisplay();
+
+  drawField();
+
+  // Player & AI
+  display.fillRect(playerX, playerY, 3, 3, SSD1306_WHITE);
+  display.fillRect(aiX, aiY, 3, 3, SSD1306_WHITE);
+
+  // Ball
+  display.fillCircle(ballX, ballY, 2, SSD1306_WHITE);
+
+  // Score
+  display.setTextSize(1);
+  display.setCursor(44, 0);
+  display.print(playerScore);
+  display.print(" : ");
+  display.print(aiScore);
+
+  display.display();
+}
+
+// ================= GAME OVER =================
+void showGameOver() {
+  display.clearDisplay();
+  display.setTextSize(1);
+
+  display.setCursor(24, 22);
+  display.print("MATCH OVER");
+
+  display.setCursor(30, 38);
+  if (playerScore > aiScore) display.print("YOU WIN");
+  else if (playerScore < aiScore) display.print("YOU LOSE");
+  else display.print("DRAW");
+
+  display.display();
+}
