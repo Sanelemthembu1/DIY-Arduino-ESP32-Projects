@@ -42,6 +42,3 @@ No license is provided in the repository. If you want to reuse or distribute thi
 
 Contributing
 If you'd like to improve the project (smaller sprites, bug fixes, enhanced controls), please fork and submit a PR with details of your changes.
-
----
-File created next to the SourceCode file so the single-file source remains unchanged.
