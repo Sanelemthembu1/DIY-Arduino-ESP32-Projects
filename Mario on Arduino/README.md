@@ -1,6 +1,8 @@
 # Mario on Arduino 🎮
 
 A **Super Mario-style platformer game** running on an Arduino with an OLED display, joystick controls, and sound effects.
+## Demo
+Link: https://youtube.com/shorts/EBJ509lZZzw?si=qdLsbm_wCAou-vTR
 
 ## Features
 
