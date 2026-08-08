@@ -1,24 +1,26 @@
 # DIY Arduino & ESP32 Projects
 
-A comprehensive collection of beginner-friendly electronics projects using popular development boards including Arduino and ESP32. This repository showcases interactive games, hardware control projects, and practical applications built on microcontroller platforms.
+A comprehensive collection of beginner-friendly electronics projects using popular development boards including Arduino and ESP32. This repository showcases interactive games, hardware control projects, and example sketches to help you learn microcontroller programming.
 
 ## 📚 Project Collection
 
 ### Game Projects
-- **Block Breaker** - A classic block-breaking game implementation on Arduino
-- **Bounce** - A bouncing game for Arduino with interactive controls
-- **Dino Run** - Chrome's famous Dinosaur runner game ported to Arduino
-- **Mario** - Super Mario-inspired platformer game on Arduino
-- **Pac-Man** - Pac-Man game implementation on Arduino
-- **Pixel Soccer** - Soccer simulation game with pixel graphics
-- **Snake Game** - Classic Snake game with OLED display support
-- **Tennis Game** - Tennis simulation on OLED display
-- **Sonic on Arduino** - Mini Sonic-style platformer on Arduino featuring OLED
-- **Tic-Tac-Toe** - Interactive Tic-Tac-Toe game on Arduino UNO and TFT displays
-- **Word Scramble** - Word puzzle game
+- **Block Breaker** - A classic block-breaking game implementation on Arduino (directory: `Block-Breaker-on-arduino`)
+- **Bounce** - A bouncing game for Arduino with interactive controls (directory: `Bounce_on_arduino`)
+- **Dino Run** - Chrome's famous Dinosaur runner game ported to Arduino (directory: `Dino_Run`)
+- **Flappy Bird** - Flappy Bird clone for Arduino (directory: `FlappyBirdOnArduino`)
+- **Mario** - Super Mario-inspired platformer game on Arduino (directory: `Mario on Arduino`)
+- **Pac-Man** - Pac-Man game implementation on Arduino (directory: `Pac-Man_on_arduino`)
+- **Pixel Soccer** - Soccer simulation game with pixel graphics (directory: `Pixel-soccer`)
+- **Snake Game** - Classic Snake game with OLED display support (directory: `Snake-game-with-oled`)
+- **Sonic (v1)** - Mini Sonic-style platformer on Arduino featuring OLED (directory: `SonicOnArduino`)
+- **Sonic (v2)** - Updated Sonic port / improved version (directory: `SonicOnArduinoVersion2`)
+- **Tennis Game** - Tennis simulation on OLED display (directory: `TennisGameOnOLED`)
+- **Tic-Tac-Toe** - Interactive Tic-Tac-Toe game on Arduino UNO and TFT displays (directory: `Tic-tac-toe-uno-and-tft`)
+- **Word Scramble** - Word puzzle game (directory: `WordScramble`)
 
 ### Hardware Control Projects
-- **Toggle ON/OFF Motor** - Control motor operations with toggle functionality
+- **Toggle ON/OFF Motor** - Control motor operations with toggle functionality (directory: `Toggle-ON-OFF-Motor`)
 
 ## 🛠️ Technologies & Components
 
@@ -37,7 +39,13 @@ Perfect for beginners learning electronics, microcontrollers, and embedded syste
 
 ## 📖 Getting Started
 
-Each project directory contains the necessary code and documentation to get started. Projects are compatible with Arduino IDE for easy deployment.
+Each project directory contains the necessary code and documentation to get started. Projects are compatible with Arduino IDE for easy deployment. Typical steps:
+1. Open the project folder in the Arduino IDE (or VS Code with PlatformIO)
+2. Install any required libraries (see each project's README)
+3. Connect the board and upload the sketch
+4. Follow wiring diagrams included in project folders for displays, buttons, and motors
+
+If you need help with a specific project, open an issue or check the project's directory for more detailed instructions.
 
 ## ⚡ Features
 
@@ -50,5 +58,6 @@ Each project directory contains the necessary code and documentation to get star
 ---
 
 **Created**: November 5, 2025  
+**Last updated**: August 8, 2026
 **Language**: C++  
 **License**: Open Source
