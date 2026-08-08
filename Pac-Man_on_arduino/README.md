@@ -1,7 +1,8 @@
 # Pac-Man on Arduino
 
 A classic Pac-Man game implementation for Arduino on a small OLED display (128x64 pixels) using an Adafruit SSD1306 display and joystick input.
-
+## Demo
+Link: https://youtube.com/shorts/aVP9bUrWy6I?si=33jqzH-mrr6xtznP
 ## Overview
 
 This sketch brings the iconic Pac-Man arcade game to life on embedded hardware, featuring player-controlled Pac-Man, AI-driven ghosts, collectible pellets, and a maze environment.
