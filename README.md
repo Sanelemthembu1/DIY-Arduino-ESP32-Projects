@@ -13,6 +13,7 @@ A comprehensive collection of beginner-friendly electronics projects using popul
 - **Pixel Soccer** - Soccer simulation game with pixel graphics
 - **Snake Game** - Classic Snake game with OLED display support
 - **Tennis Game** - Tennis simulation on OLED display
+- **Sonic on Arduino** - Mini Sonic-style platformer on Arduino featuring OLED
 - **Tic-Tac-Toe** - Interactive Tic-Tac-Toe game on Arduino UNO and TFT displays
 - **Word Scramble** - Word puzzle game
 
