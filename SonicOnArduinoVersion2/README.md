@@ -9,6 +9,8 @@ This README documents the goals, hardware, wiring, dependencies and how to build
 - An embedded, retro-style Sonic-like demo/game written in Arduino/C++ targeting small microcontroller boards (ESP32/Arduino) and an SSD1306 128x64 OLED display.
 - Continuation / upgrade of the original `SonicOnArduino` project: new sprite sheets, boss animations, hitboxes, ring collection, improved game state and UI elements.
 - Intended as both a learning project for microcontroller graphics and a playful demo you can run on a handheld or breadboard setup.
+## Demo
+Link: https://youtube.com/shorts/aVP9bUrWy6I?si=uQBOLwSgrFjfXYXB
 
 ## Features
 
@@ -120,11 +122,4 @@ If you forked the original project, compare the sprite arrays and hitbox definit
 ## License
 
 No license file included by default. If you want this project to be open source, add a LICENSE (for example, the MIT License).
-
----
-
-If you'd like, I can:
-- add a LICENSE (MIT) to the repository,
-- add this README to the project (I will commit it for you),
-- or update pin mappings to target ESP32 specifically.
 
