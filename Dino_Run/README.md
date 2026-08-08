@@ -5,6 +5,8 @@ A fun dinosaur-themed endless runner game built for Arduino/ESP32 with an OLED d
 ## 📋 Overview
 
 Dino Run is an interactive game where you control a dinosaur that must avoid incoming obstacles and cars while accumulating points. The game features physics-based movement, collision detection, and sound effects.
+## Demo
+Link: https://youtube.com/shorts/9tusvMqC588?si=9XAGFWza56ogSxFT
 
 ## 🎮 Game Mechanics
 
