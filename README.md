@@ -1,6 +1,6 @@
 # DIY Arduino & ESP32 Projects
 
-A comprehensive collection of beginner-friendly electronics projects using popular development boards including Arduino and ESP32. This repository showcases interactive games, hardware control projects, and example sketches to help you learn microcontroller programming.
+A comprehensive collection of beginner-friendly electronics projects using popular development boards including Arduino and ESP32. This repository showcases interactive games, hardware control projects, and learning examples for beginners.
 
 ## 📚 Project Collection
 
@@ -9,6 +9,7 @@ A comprehensive collection of beginner-friendly electronics projects using popul
 - **Bounce** - A bouncing game for Arduino with interactive controls (directory: `Bounce_on_arduino`)
 - **Dino Run** - Chrome's famous Dinosaur runner game ported to Arduino (directory: `Dino_Run`)
 - **Flappy Bird** - Flappy Bird clone for Arduino (directory: `FlappyBirdOnArduino`)
+- **Mega Man On Arduino** - Mega Man-inspired action/shooter for SSD1306 OLED (directory: `Mega Man On Arduino`)
 - **Mario** - Super Mario-inspired platformer game on Arduino (directory: `Mario on Arduino`)
 - **Pac-Man** - Pac-Man game implementation on Arduino (directory: `Pac-Man_on_arduino`)
 - **Pixel Soccer** - Soccer simulation game with pixel graphics (directory: `Pixel-soccer`)
@@ -58,6 +59,6 @@ If you need help with a specific project, open an issue or check the project's d
 ---
 
 **Created**: November 5, 2025  
-**Last updated**: August 8, 2026
+**Last updated**: August 13, 2026
 **Language**: C++  
 **License**: Open Source
