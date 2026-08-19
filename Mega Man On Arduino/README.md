@@ -52,7 +52,7 @@ Install via the Arduino Library Manager:
 - `source_code/` — main sketch and C/C++ source files, sprite bitmaps in PROGMEM
 - `README.md` — this file
 
-##❓How to Use
+## ❓How to Use
 
 1. Open the `source_code` folder in the Arduino IDE or PlatformIO.
 2. Install the dependencies listed above.
