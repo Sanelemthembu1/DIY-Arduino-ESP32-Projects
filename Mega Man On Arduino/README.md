@@ -15,6 +15,8 @@ This project ports classic Mega Man-style gameplay to a microcontroller and smal
 - Simple HUD showing score and lives
 - Bitmap sprites stored in PROGMEM for efficient display
 - Sound effects via passive buzzer
+## ▶️Demo
+- Link: https://youtube.com/shorts/n5QhOsj3owc?si=HiZ63yME2TeshqBR
 
 ## 🛠️ Hardware Requirements
 
@@ -50,7 +52,7 @@ Install via the Arduino Library Manager:
 - `source_code/` — main sketch and C/C++ source files, sprite bitmaps in PROGMEM
 - `README.md` — this file
 
-## ▶️ How to Use
+##❓How to Use
 
 1. Open the `source_code` folder in the Arduino IDE or PlatformIO.
 2. Install the dependencies listed above.
@@ -71,7 +73,7 @@ Install via the Arduino Library Manager:
 
 ## 👨‍💻 Author
 
-Part of the DIY Arduino/ESP32 Projects collection.
+Sanelemthembu1 as Part of the DIY Arduino/ESP32 Projects collection.
 
 ---
 
